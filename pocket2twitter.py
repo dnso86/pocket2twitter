@@ -1,9 +1,12 @@
 from random import randint, shuffle
-import time
 
 import argparse
+from datetime import datetime, timedelta
+from dateutil.parser import parse
 import config
 from pocket import Pocket
+import pytz
+import time
 import twitter
 
 
@@ -18,11 +21,14 @@ pocketAPI = Pocket(
     access_token=config.POCKET_ACCESS_TOKEN,
 )
 
-twitterAPI = twitter.Api(
-    consumer_key=config.TWITTER_CONSUMER_KEY,
-    consumer_secret=config.TWITTER_CONSUMER_SECRET,
-    access_token_key=config.TWITTER_ACCESS_TOKEN_KEY,
-    access_token_secret=config.TWITTER_ACCESS_TOKEN_SECRET)
+twitterAPI = twitter.Twitter(
+	auth=twitter.OAuth(
+		config.TWITTER_ACCESS_TOKEN_KEY,
+		config.TWITTER_ACCESS_TOKEN_SECRET,
+		config.TWITTER_CONSUMER_KEY,
+		config.TWITTER_CONSUMER_SECRET,
+	),
+)
 
 
 def main(args):
@@ -31,20 +37,19 @@ def main(args):
 
     articles = pocketAPI.retrieve(tag=args.article_tag)['list']
 
-    user_timeline = twitterAPI.GetUserTimeline()
+    user_timeline = twitterAPI.statuses.user_timeline(count=1)
 
     if not user_timeline:
-        print 'Empty Twitter timeline, tweeting anyway!'
+        print('Empty Twitter timeline, tweeting anyway!')
     else:
-        last_tweet_created = user_timeline[0].created_at_in_seconds
+        last_tweet_created = parse(user_timeline[0]['created_at'])
+        elapsed_in_hours = pytz.utc.localize(datetime.now()) - last_tweet_created
 
-        elapsed_in_hours = (time.time() - last_tweet_created) / 3600.0
-
-        if elapsed_in_hours < args.elapsed_hours:
-            print 'No need to tweet now.'
+        if elapsed_in_hours < timedelta(hours=args.elapsed_hours):
+            print('No need to tweet now.')
             exit(0)
 
-    all_articles = articles.values()
+    all_articles = list(articles.values())
 
     shuffle(all_articles)
 
@@ -60,14 +65,14 @@ def main(args):
     tweet = prepare_tweet(chosen_article)
 
     try:
-        twitterAPI.PostUpdate(tweet)
+        twitterAPI.statuses.update(status=tweet)
     except:
-        print 'Could not tweet status update!'
+        print('Could not tweet status update!')
         exit(1)
 
     pocketAPI.tags_remove(chosen_article_id, args.article_tag).archive(chosen_article_id).commit()
 
-    print 'Tweeted "%s"!' % tweet
+    print('Tweeted "%s"!' % tweet)
 
 def prepare_tweet(article):
     title = article.get('resolved_title', article['given_title'])
@@ -89,7 +94,7 @@ def prepare_tweet(article):
 
 def random_delay(max_minutes):
     delay = randint(1, max_minutes - 1)
-    print 'Waiting %d min' % delay
+    print('Waiting %d min' % delay)
     time.sleep(delay * 60)
 
 

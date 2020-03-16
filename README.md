@@ -19,7 +19,7 @@ both _Consumer API keys_ and a read-write _Access token & access token secret_.
 
 5. Add the tokens to `config.py`.
 
-6. Install `pocket-api` and `python-twitter` with: `pip install pocket-api python-twitter`
+6. Install `pocket-api` and `twitter` with: `pip install pocket-api twitter`
 
 7. Run `pocket2tweet.py` each time when you'd like to update your followers `python pocket2tweet.py`.
 
